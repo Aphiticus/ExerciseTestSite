@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Workout Motion Tracker</title>
+<style>
+:root{
+    --bg:#0f172a;
+    --panel:#111827;
+    --panel2:#1f2937;
+    --txt:#e5e7eb;
+    --muted:#94a3b8;
+    --ok:#22c55e;
+    --warn:#f59e0b;
+    --bad:#ef4444;
+    --line:#334155;
+    --btn:#2563eb;
+    --btn2:#0ea5e9;
+}
+*{box-sizing:border-box}
+body{
+    margin:0;
+    background:linear-gradient(180deg,#020617,#0f172a);
+    color:var(--txt);
+    font-family:Arial,Helvetica,sans-serif;
+}
+.wrap{
+    max-width:920px;
+    margin:0 auto;
+    padding:16px;
+}
+h1{
+    margin:0 0 8px;
+    font-size:28px;
+}
+.sub{
+    color:var(--muted);
+    margin-bottom:16px;
+    line-height:1.4;
+}
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:12px;
+}
+.card{
+    background:rgba(17,24,39,.9);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:14px;
+    backdrop-filter:blur(6px);
+}
+.stat{
+    font-size:34px;
+    font-weight:700;
+    margin-top:8px;
+}
+.lbl{
+    color:var(--muted);
+    font-size:13px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+}
+.row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+button,select,input{
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--panel2);
+    color:var(--txt);
+    padding:12px 14px;
+    font-size:15px;
+}
+button{
+    cursor:pointer;
+    background:var(--btn);
+    border:none;
+    font-weight:700;
+}
+button.alt{background:var(--btn2)}
+button.warn{background:var(--warn); color:#111827}
+button.bad{background:var(--bad)}
+button:disabled{opacity:.5; cursor:not-allowed}
+.controls{
+    display:grid;
+    gap:12px;
+    margin:16px 0;
+}
+.two{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+@media (max-width:700px){
+    .two{grid-template-columns:1fr}
+}
+.status{
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:#0b1220;
+    color:var(--muted);
+    min-height:48px;
+    display:flex;
+    align-items:center;
+}
+.good{color:var(--ok)}
+.badtxt{color:var(--bad)}
+.log{
+    margin-top:12px;
+    background:#020617;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:12px;
+    height:220px;
+    overflow:auto;
+    font-size:14px;
+    line-height:1.4;
+    white-space:pre-wrap;
+}
+.small{
+    font-size:13px;
+    color:var(--muted);
+}
+.list{
+    margin:0;
+    padding-left:18px;
+    color:var(--muted);
+}
+.canvasBox{
+    margin-top:12px;
+    background:#020617;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px;
+}
+canvas{
+    width:100%;
+    height:140px;
+    display:block;
+    background:#020617;
+    border-radius:8px;
+}
+.footer{
+    margin-top:14px;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.5;
+}
+.tag{
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    color:var(--muted);
+    background:#0b1220;
+    font-size:12px;
+    margin-right:6px;
+    margin-bottom:6px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Workout Motion Tracker</h1>
+    <div class="sub">Single-file browser prototype for iPhone and Android. It reads motion sensors and estimates steps, walking distance, pushups, situps, and knee benders.</div>
+
+    <div class="row">
+        <span class="tag">Browser Prototype</span>
+        <span class="tag">iPhone Permission Button</span>
+        <span class="tag">Android Motion Sensors</span>
+        <span class="tag">No App Install</span>
+    </div>
+
+    <div class="controls">
+        <div class="two">
+            <div class="card">
+                <div class="lbl">1. Sensor Access</div>
+                <div class="row" style="margin-top:10px">
+                    <button id="btnPerm">Enable Motion Access</button>
+                    <button id="btnStart" class="alt" disabled>Start Workout</button>
+                    <button id="btnStop" class="warn" disabled>Stop Workout</button>
+                    <button id="btnReset" class="bad">Reset</button>
+                </div>
+                <div id="status" class="status" style="margin-top:12px">Waiting for sensor permission.</div>
+            </div>
+
+            <div class="card">
+                <div class="lbl">2. Workout Setup</div>
+                <div class="row" style="margin-top:10px">
+                    <select id="mode">
+                        <option value="auto">Auto Detect</option>
+                        <option value="walk">Walk / Run</option>
+                        <option value="pushup">Pushups</option>
+                        <option value="situp">Situps</option>
+                        <option value="squat">Knee Benders / Squats</option>
+                    </select>
+                    <input id="stride" type="number" min="0.3" max="2.0" step="0.01" value="0.78" style="width:140px">
+                </div>
+                <div class="small" style="margin-top:10px">
+                    Stride length in meters per step. A common estimate is 0.70 to 0.82.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="lbl">Elapsed Time</div>
+            <div class="stat" id="tm">00:00</div>
+        </div>
+        <div class="card">
+            <div class="lbl">Steps</div>
+            <div class="stat" id="steps">0</div>
+        </div>
+        <div class="card">
+            <div class="lbl">Distance</div>
+            <div class="stat" id="dist">0.00 m</div>
+        </div>
+        <div class="card">
+            <div class="lbl">Pushups</div>
+            <div class="stat" id="pushups">0</div>
+        </div>
+        <div class="card">
+            <div class="lbl">Situps</div>
+            <div class="stat" id="situps">0</div>
+        </div>
+        <div class="card">
+            <div class="lbl">Knee Benders</div>
+            <div class="stat" id="squats">0</div>
+        </div>
+    </div>
+
+    <div class="two" style="margin-top:12px">
+        <div class="card">
+            <div class="lbl">Live Motion</div>
+            <div class="canvasBox">
+                <canvas id="cv" width="800" height="140"></canvas>
+            </div>
+            <div class="small" style="margin-top:8px">
+                Blue = total acceleration magnitude, orange = filtered motion signal
+            </div>
+        </div>
+        <div class="card">
+            <div class="lbl">Sensor Snapshot</div>
+            <div class="grid" style="margin-top:10px; grid-template-columns:repeat(2,1fr)">
+                <div><div class="small">ax</div><div id="ax" class="stat" style="font-size:22px">0</div></div>
+                <div><div class="small">ay</div><div id="ay" class="stat" style="font-size:22px">0</div></div>
+                <div><div class="small">az</div><div id="az" class="stat" style="font-size:22px">0</div></div>
+                <div><div class="small">magnitude</div><div id="mag" class="stat" style="font-size:22px">0</div></div>
+                <div><div class="small">tilt beta</div><div id="beta" class="stat" style="font-size:22px">0</div></div>
+                <div><div class="small">tilt gamma</div><div id="gamma" class="stat" style="font-size:22px">0</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+        <div class="lbl">Activity Log</div>
+        <div id="log" class="log"></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+        <div class="lbl">Best Use Notes</div>
+        <ul class="list" style="margin-top:10px">
+            <li>Walking and running work best with the phone in a pocket, waistband, or arm band.</li>
+            <li>Pushups and situps work best when the phone position stays consistent for the entire set.</li>
+            <li>iPhone requires tapping the permission button before motion data is available.</li>
+            <li>This is a browser estimate, not medical or gym-grade measurement.</li>
+        </ul>
+        <div class="footer">
+            On iPhone Safari and many mobile browsers, this page must be opened from HTTPS or localhost for sensor access. Background counting is limited in browsers, so keep the page open and screen active during tests.
+        </div>
+    </div>
+</div>
+
+<script>
+const st = {
+    ready:false,
+    running:false,
+    startTs:0,
+    tmId:null,
+    mode:"auto",
+    stride:0.78,
+    ax:0, ay:0, az:0,
+    beta:0, gamma:0,
+    mag:0,
+    g:9.81,
+    lp:0,
+    hp:0,
+    filt:0,
+    lastStep:0,
+    lastPush:0,
+    lastSit:0,
+    lastSquat:0,
+    stepArmed:true,
+    pushStage:0,
+    sitStage:0,
+    squatStage:0,
+    steps:0,
+    pushups:0,
+    situps:0,
+    squats:0,
+    hist1:[],
+    hist2:[],
+    maxHist:220,
+    lastLog:"",
+    lastModeGuess:"idle"
+}
+
+const el = {
+    btnPerm:document.getElementById("btnPerm"),
+    btnStart:document.getElementById("btnStart"),
+    btnStop:document.getElementById("btnStop"),
+    btnReset:document.getElementById("btnReset"),
+    status:document.getElementById("status"),
+    mode:document.getElementById("mode"),
+    stride:document.getElementById("stride"),
+    tm:document.getElementById("tm"),
+    steps:document.getElementById("steps"),
+    dist:document.getElementById("dist"),
+    pushups:document.getElementById("pushups"),
+    situps:document.getElementById("situps"),
+    squats:document.getElementById("squats"),
+    ax:document.getElementById("ax"),
+    ay:document.getElementById("ay"),
+    az:document.getElementById("az"),
+    mag:document.getElementById("mag"),
+    beta:document.getElementById("beta"),
+    gamma:document.getElementById("gamma"),
+    log:document.getElementById("log"),
+    cv:document.getElementById("cv")
+}
+
+const cx = el.cv.getContext("2d")
+
+function fmtTime(ms){
+    const s = Math.floor(ms/1000)
+    const m = Math.floor(s/60)
+    const r = s%60
+    return String(m).padStart(2,"0")+":"+String(r).padStart(2,"0")
+}
+
+function setStatus(t, good=false, bad=false){
+    el.status.textContent = t
+    el.status.className = "status" + (good ? " good" : "") + (bad ? " badtxt" : "")
+}
+
+function log(t){
+    const now = new Date()
+    const tm = now.toLocaleTimeString()
+    const line = "["+tm+"] "+t
+    if(line === st.lastLog) return
+    st.lastLog = line
+    el.log.textContent = line + "\n" + el.log.textContent
+}
+
+function updUI(){
+    el.steps.textContent = st.steps
+    el.dist.textContent = (st.steps * st.stride).toFixed(2) + " m"
+    el.pushups.textContent = st.pushups
+    el.situps.textContent = st.situps
+    el.squats.textContent = st.squats
+    el.ax.textContent = st.ax.toFixed(2)
+    el.ay.textContent = st.ay.toFixed(2)
+    el.az.textContent = st.az.toFixed(2)
+    el.mag.textContent = st.mag.toFixed(2)
+    el.beta.textContent = st.beta.toFixed(1)
+    el.gamma.textContent = st.gamma.toFixed(1)
+}
+
+function resetAll(){
+    st.startTs = 0
+    st.steps = 0
+    st.pushups = 0
+    st.situps = 0
+    st.squats = 0
+    st.lp = 0
+    st.hp = 0
+    st.filt = 0
+    st.lastStep = 0
+    st.lastPush = 0
+    st.lastSit = 0
+    st.lastSquat = 0
+    st.stepArmed = true
+    st.pushStage = 0
+    st.sitStage = 0
+    st.squatStage = 0
+    st.hist1 = []
+    st.hist2 = []
+    el.tm.textContent = "00:00"
+    updUI()
+    draw()
+    log("Stats reset")
+}
+
+function startWorkout(){
+    if(!st.ready){
+        setStatus("Enable motion access first.", false, true)
+        return
+    }
+    st.running = true
+    st.startTs = Date.now()
+    if(st.tmId) clearInterval(st.tmId)
+    st.tmId = setInterval(()=>{
+        if(st.running) el.tm.textContent = fmtTime(Date.now() - st.startTs)
+    },250)
+    el.btnStart.disabled = true
+    el.btnStop.disabled = false
+    setStatus("Workout running", true, false)
+    log("Workout started")
+}
+
+function stopWorkout(){
+    st.running = false
+    if(st.tmId) clearInterval(st.tmId)
+    st.tmId = null
+    el.btnStart.disabled = false
+    el.btnStop.disabled = true
+    setStatus("Workout stopped")
+    log("Workout stopped")
+}
+
+function reqPermIOS(){
+    if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
+        return DeviceMotionEvent.requestPermission()
+    }
+    return Promise.resolve("granted")
+}
+
+async function enableSensors(){
+    try{
+        const p = await reqPermIOS()
+        if(p !== "granted"){
+            setStatus("Motion permission denied.", false, true)
+            log("Permission denied")
+            return
+        }
+        window.addEventListener("devicemotion", onMotion, {passive:true})
+        window.addEventListener("deviceorientation", onOrient, {passive:true})
+        st.ready = true
+        el.btnStart.disabled = false
+        setStatus("Motion access enabled", true, false)
+        log("Motion access enabled")
+    }catch(e){
+        setStatus("Could not enable motion access.", false, true)
+        log("Permission error: " + e.message)
+    }
+}
+
+function onOrient(e){
+    st.beta = Number.isFinite(e.beta) ? e.beta : 0
+    st.gamma = Number.isFinite(e.gamma) ? e.gamma : 0
+    updUI()
+}
+
+function getModeGuess(){
+    const a = Math.abs(st.filt)
+    const b = Math.abs(st.beta)
+    if(a > 1.15) return "walk"
+    if(b > 45 && a > 0.55) return "situp"
+    if(a > 0.8 && b < 40) return "pushup"
+    if(a > 0.65 && Math.abs(st.gamma) < 35) return "squat"
+    return "idle"
+}
+
+function activeMode(){
+    const m = el.mode.value
+    if(m !== "auto") return m
+    const g = getModeGuess()
+    st.lastModeGuess = g
+    return g
+}
+
+function stepDet(ts, sig){
+    const up = 1.05
+    const down = 0.2
+    const gap = 280
+    if(st.stepArmed && sig > up && ts - st.lastStep > gap){
+        st.steps++
+        st.lastStep = ts
+        st.stepArmed = false
+        updUI()
+        log("Step " + st.steps)
+    }
+    if(sig < down) st.stepArmed = true
+}
+
+function pushDet(ts){
+    const b = st.beta
+    const gap = 650
+    if(ts - st.lastPush < gap) return
+    if(st.pushStage === 0 && b > 35){
+        st.pushStage = 1
+    }else if(st.pushStage === 1 && b < 8){
+        st.pushStage = 2
+    }else if(st.pushStage === 2 && b > 28){
+        st.pushups++
+        st.lastPush = ts
+        st.pushStage = 0
+        updUI()
+        log("Pushup " + st.pushups)
+    }
+}
+
+function sitDet(ts){
+    const b = st.beta
+    const gap = 750
+    if(ts - st.lastSit < gap) return
+    if(st.sitStage === 0 && b < 12){
+        st.sitStage = 1
+    }else if(st.sitStage === 1 && b > 42){
+        st.sitStage = 2
+    }else if(st.sitStage === 2 && b < 20){
+        st.situps++
+        st.lastSit = ts
+        st.sitStage = 0
+        updUI()
+        log("Situp " + st.situps)
+    }
+}
+
+function squatDet(ts, sig){
+    const gap = 700
+    if(ts - st.lastSquat < gap) return
+    if(st.squatStage === 0 && sig > 0.8){
+        st.squatStage = 1
+    }else if(st.squatStage === 1 && sig < -0.45){
+        st.squatStage = 2
+    }else if(st.squatStage === 2 && sig > 0.55){
+        st.squats++
+        st.lastSquat = ts
+        st.squatStage = 0
+        updUI()
+        log("Knee bender " + st.squats)
+    }
+}
+
+function onMotion(e){
+    const a = e.accelerationIncludingGravity || e.acceleration || {x:0,y:0,z:0}
+    st.ax = Number.isFinite(a.x) ? a.x : 0
+    st.ay = Number.isFinite(a.y) ? a.y : 0
+    st.az = Number.isFinite(a.z) ? a.z : 0
+    st.mag = Math.sqrt(st.ax*st.ax + st.ay*st.ay + st.az*st.az)
+
+    st.lp = 0.85 * st.lp + 0.15 * st.mag
+    st.hp = st.mag - st.lp
+    st.filt = 0.75 * st.filt + 0.25 * st.hp
+
+    st.hist1.push(st.mag)
+    st.hist2.push(st.filt)
+    if(st.hist1.length > st.maxHist) st.hist1.shift()
+    if(st.hist2.length > st.maxHist) st.hist2.shift()
+
+    updUI()
+    draw()
+
+    if(!st.running) return
+
+    const ts = Date.now()
+    const m = activeMode()
+
+    if(m === "walk"){
+        stepDet(ts, Math.abs(st.filt))
+    }else if(m === "pushup"){
+        pushDet(ts)
+    }else if(m === "situp"){
+        sitDet(ts)
+    }else if(m === "squat"){
+        squatDet(ts, st.filt)
+    }else{
+        stepDet(ts, Math.abs(st.filt))
+        pushDet(ts)
+        sitDet(ts)
+        squatDet(ts, st.filt)
+    }
+}
+
+function draw(){
+    const w = el.cv.width
+    const h = el.cv.height
+    cx.clearRect(0,0,w,h)
+    cx.strokeStyle = "#1e293b"
+    cx.lineWidth = 1
+    for(let i=1;i<5;i++){
+        const y = h*i/5
+        cx.beginPath()
+        cx.moveTo(0,y)
+        cx.lineTo(w,y)
+        cx.stroke()
+    }
+
+    const d1 = st.hist1
+    const d2 = st.hist2
+    if(d1.length < 2) return
+
+    const max1 = 20
+    const max2 = 3.5
+
+    cx.lineWidth = 2
+    cx.strokeStyle = "#38bdf8"
+    cx.beginPath()
+    for(let i=0;i<d1.length;i++){
+        const x = i/(st.maxHist-1)*w
+        const y = h - Math.min(d1[i],max1)/max1*h
+        if(i===0) cx.moveTo(x,y)
+        else cx.lineTo(x,y)
+    }
+    cx.stroke()
+
+    cx.strokeStyle = "#fb923c"
+    cx.beginPath()
+    for(let i=0;i<d2.length;i++){
+        const x = i/(st.maxHist-1)*w
+        const v = (d2[i] + max2) / (max2*2)
+        const y = h - Math.max(0,Math.min(1,v))*h
+        if(i===0) cx.moveTo(x,y)
+        else cx.lineTo(x,y)
+    }
+    cx.stroke()
+}
+
+el.btnPerm.addEventListener("click", enableSensors)
+el.btnStart.addEventListener("click", startWorkout)
+el.btnStop.addEventListener("click", stopWorkout)
+el.btnReset.addEventListener("click", resetAll)
+el.mode.addEventListener("change", ()=>{
+    st.mode = el.mode.value
+    log("Mode set to " + st.mode)
+})
+el.stride.addEventListener("input", ()=>{
+    let v = parseFloat(el.stride.value)
+    if(!Number.isFinite(v) || v <= 0) v = 0.78
+    st.stride = v
+    updUI()
+})
+
+updUI()
+draw()
+</script>
+</body>
+</html>
